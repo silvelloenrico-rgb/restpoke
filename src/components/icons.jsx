@@ -7,5 +7,6 @@ export const Icons = {
   sales: p => <svg {...s} {...p}><path d="M3 3v18h18" /><path d="M7 14l4-4 3 3 5-6" /></svg>,
   openings: p => <svg {...s} {...p}><path d="M3 7h18l-1 5H4L3 7Z" /><path d="M5 12v8h14v-8" /><path d="M12 3v4" /></svg>,
   raffles: p => <svg {...s} {...p}><path d="M4 8V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 8v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-8Z" /><path d="M12 5v14" strokeDasharray="2 3" /></svg>,
+  bell: p => <svg {...s} {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10 21a2 2 0 0 0 4 0" /></svg>,
   personal: p => <svg {...s} {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>,
 }

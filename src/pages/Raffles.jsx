@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { eur2 } from '../lib/finance'
 import { Modal, Form, Who } from '../components/ui'
 import { DataTable } from '../components/DataTable'
+import { notifyOther } from '../lib/push'
 
 const FIELDS = [
   { name: 'name', label: 'Nome raffle', required: true, full: true },
@@ -19,6 +20,7 @@ export default function Raffles({ data, refresh }) {
   const save = async out => {
     const r = modal.item ? await supabase.from('raffles').update(out).eq('id', modal.item.id) : await supabase.from('raffles').insert(out)
     if (r.error) throw r.error
+    if (!modal.item) notifyOther('Nuovo raffle', `${out.name} · ${eur2(Number(out.cost_enrico || 0) + Number(out.cost_alessandro || 0))}`)
     setModal(null); refresh()
   }
   const remove = async () => {

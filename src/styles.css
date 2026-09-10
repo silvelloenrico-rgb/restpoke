@@ -169,15 +169,19 @@ tr:hover td { background: #F7F9FC; }
 
 /* Lista a schede per telefono: nascosta su desktop, mostrata sotto 800px */
 .card-list { display: none; }
-.item-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 10px; }
-.item-card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-.item-card .nm { font-weight: 600; line-height: 1.25; }
-.item-card .meta { color: var(--ink-2); font-size: 12px; margin-top: 3px; }
-.item-card .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 10px 14px; margin-top: 10px; }
-.item-card .figs div { font-size: 13px; color: var(--ink-2); }
-.item-card .figs b { display: block; color: var(--ink); font-size: 15px; font-variant-numeric: tabular-nums; font-family: var(--display); font-weight: 700; }
-.item-card .acts { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.item-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin-bottom: 6px; cursor: pointer; }
+.item-card .row1 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.item-card .nm { font-weight: 600; font-size: 14px; line-height: 1.25; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-card .row2 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 3px; }
+.item-card .meta { color: var(--ink-2); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-card .nums { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-2); }
+.item-card .nums .arr { color: var(--line); }
+.item-card .nums b { font-family: var(--display); font-size: 14px; margin-left: 2px; }
+.item-card .status { font-size: 11px; padding: 1px 8px; }
+.item-card .acts { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); flex-wrap: wrap; cursor: default; }
+.item-card .acts .tags { width: 100%; }
 .item-card .acts .btn { flex: 1; text-align: center; padding: 9px 8px; }
+.item-card.open { border-color: var(--ink-2); }
 
 @media (max-width: 800px) {
   .desktop-only { display: none; }         /* la tabella dell'inventario: su telefono ci sono le schede */
@@ -198,11 +202,11 @@ tr:hover td { background: #F7F9FC; }
   /* Tabelle "stack": ogni riga diventa una scheda etichetta/valore */
   table.stack thead { display: none; }
   table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; width: 100%; }
-  table.stack tr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 10px; }
+  table.stack tr { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; font-size: 13.5px; }
   table.stack tr:hover td { background: transparent; }
-  table.stack td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 0; border: 0; text-align: right; }
+  table.stack td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; border: 0; text-align: right; }
   table.stack td::before { content: attr(data-label); color: var(--ink-2); font-size: 12px; text-align: left; flex: none; }
-  table.stack td.primary { display: block; text-align: left; font-weight: 600; font-size: 15px; padding: 2px 0 8px; border-bottom: 1px dashed var(--line); margin-bottom: 4px; }
+  table.stack td.primary { display: block; text-align: left; font-weight: 600; font-size: 14px; padding: 1px 0 6px; border-bottom: 1px dashed var(--line); margin-bottom: 3px; }
   table.stack td.primary::before { display: none; }
   table.stack td.actions { justify-content: flex-start; gap: 8px; flex-wrap: wrap; padding-top: 10px; }
   table.stack td.actions::before { display: none; }
@@ -228,3 +232,9 @@ tr:hover td { background: #F7F9FC; }
 .opening-figs { display: grid; grid-template-columns: repeat(3, auto); gap: 6px 22px; font-size: 13px; color: var(--ink-2); }
 .opening-figs b { display: block; color: var(--ink); font-family: var(--display); font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
 @media (max-width: 800px) { .opening-figs { width: 100%; grid-template-columns: repeat(3, 1fr); } }
+
+/* Campanella notifiche */
+.topbar .topbar-actions { display: flex; align-items: center; gap: 8px; }
+.topbar .bell { position: relative; background: rgba(255,255,255,.12); color: #fff; border: 0; border-radius: 99px; width: 36px; height: 36px; display: grid; place-items: center; }
+.topbar .bell .dot { position: absolute; top: 7px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--ale); }
+.topbar .bell:disabled { opacity: .5; }

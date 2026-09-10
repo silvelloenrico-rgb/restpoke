@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase, loadAll } from './lib/supabase'
 import { Icons } from './components/icons'
+import { pushSupported, currentSubscription, enablePush, disablePush, isIosBrowserNotInstalled } from './lib/push'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
 import Sales from './pages/Sales'
@@ -41,6 +42,32 @@ function Auth() {
         </form>
       </div>
     </div>
+  )
+}
+
+// Pulsante notifiche: attiva/disattiva le push su questo dispositivo.
+function PushBell({ session, compact }) {
+  const [on, setOn] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { currentSubscription().then(s => setOn(!!s)).catch(() => setOn(false)) }, [])
+  if (!pushSupported()) return null
+  const toggle = async () => {
+    setBusy(true)
+    try {
+      if (on) { await disablePush(); setOn(false) }
+      else {
+        if (isIosBrowserNotInstalled()) { alert("Su iPhone le notifiche funzionano solo dopo aver aggiunto RestPoke alla schermata Home (Condividi → Aggiungi a Home) e averla aperta da lì."); return }
+        await enablePush(session); setOn(true)
+      }
+    } catch (e) { alert(e.message) }
+    finally { setBusy(false) }
+  }
+  const label = on ? 'Notifiche attive' : 'Attiva notifiche'
+  return (
+    <button className={compact ? 'bell' : ''} onClick={toggle} disabled={busy || on === null} title={label} aria-label={label}>
+      <Icons.bell width={18} height={18} /> {!compact && label}
+      {compact && on && <i className="dot" />}
+    </button>
   )
 }
 
@@ -87,12 +114,16 @@ export default function App() {
         ))}
         <div className="spacer" />
         <div className="user">{session.user.email}</div>
+        <PushBell session={session} />
         <button onClick={() => supabase.auth.signOut()}>Esci</button>
       </nav>
 
       <header className="topbar">
         <div className="brand">Rest<span>Poke</span></div>
-        <button className="logout" onClick={() => supabase.auth.signOut()}>Esci</button>
+        <div className="topbar-actions">
+          <PushBell session={session} compact />
+          <button className="logout" onClick={() => supabase.auth.signOut()}>Esci</button>
+        </div>
       </header>
 
       <main className="main">

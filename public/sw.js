@@ -1,6 +1,6 @@
 // Service worker minimale: rende l'app installabile e apribile offline,
 // senza mai mettere in cache le chiamate a Supabase (i dati restano sempre freschi).
-const CACHE = 'restpoke-v1'
+const CACHE = 'restpoke-v2'
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/', '/index.html'])))
@@ -37,4 +37,25 @@ self.addEventListener('fetch', e => {
       return hit || net
     })
   )
+})
+
+// ---- Notifiche push ----
+self.addEventListener('push', e => {
+  let data = { title: 'RestPoke', body: '', url: '/' }
+  try { data = { ...data, ...e.data.json() } } catch {}
+  e.waitUntil(self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data: { url: data.url },
+  }))
+})
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const url = e.notification.data?.url || '/'
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    const open = list.find(c => 'focus' in c)
+    return open ? open.focus() : self.clients.openWindow(url)
+  }))
 })

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { supabase, CATEGORIES, STATUSES, PEOPLE } from '../lib/supabase'
 import { eur2, childrenOf } from '../lib/finance'
+import { notifyOther } from '../lib/push'
 import { Modal, Form, Who, Status } from '../components/ui'
 
 // Modale apertura box: segna il box come aperto e registra le carte estratte (costo 0).
@@ -18,6 +19,7 @@ function OpenModal({ box, data, refresh, onClose }) {
     const { error } = await supabase.from('items').insert(card)
     if (error) throw error
     if (box.status !== 'Aperto') await markOpened()
+    notifyOther('Sbusto', `Da ${box.name}: ${out.name}${out.market_price ? ' · ' + eur2(out.market_price) : ''}`)
     refresh()
   }
   const markOpened = async () => {
@@ -86,7 +88,8 @@ export default function Inventory({ data, refresh }) {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('')
   const [st, setSt] = useState('')
-  const [modal, setModal] = useState(null) // {type:'new'|'edit'|'sell'|'cost', item}
+  const [modal, setModal] = useState(null) // {type:'new'|'edit'|'sell'|'cost'|'open', item}
+  const [openId, setOpenId] = useState(null) // scheda espansa (telefono)
 
   const rows = useMemo(() => data.items.filter(i =>
     (!q || i.name.toLowerCase().includes(q.toLowerCase())) &&
@@ -103,6 +106,7 @@ export default function Inventory({ data, refresh }) {
       ? await supabase.from('items').insert(payload)
       : await supabase.from('items').update(payload).eq('id', modal.item.id)
     if (r.error) throw r.error
+    if (modal.type === 'new') notifyOther('Nuovo articolo', `${out.name} · ${eur2(Number(out.cost_enrico || 0) + Number(out.cost_alessandro || 0))}`)
     setModal(null); refresh()
   }
   const remove = async () => {
@@ -119,6 +123,7 @@ export default function Inventory({ data, refresh }) {
       quantity: left, status: left === 0 ? 'Venduto' : it.status, sale_date: out.sale_date,
       sale_price: out.sale_price_total / out.quantity_sold,
     }).eq('id', it.id)
+    notifyOther('Vendita registrata', `${it.name} · ${eur2(out.sale_price_total)}`)
     setModal(null); refresh()
   }
   const addCost = async out => {
@@ -153,29 +158,38 @@ export default function Inventory({ data, refresh }) {
         <select value={st} onChange={e => setSt(e.target.value)}><option value="">Tutti gli stati</option>{STATUSES.map(c => <option key={c}>{c}</option>)}</select>
       </div>
 
-      {/* Schede (telefono) */}
+      {/* Schede (telefono): compatte, tocca per vedere i pulsanti */}
       <div className="card-list">
-        {viewRows.map(({ i, isOpenedBox, mv, gain }) => (
-          <div className="item-card" key={i.id}>
-            <div className="top">
-              <div>
-                <div className="nm">{i.name}</div>
-                <div className="meta">
-                  {i.category || 'Senza categoria'}
-                  {i.opened_from && ` · da: ${nameById[i.opened_from] || 'box'}`}
-                </div>
+        {viewRows.map(({ i, isOpenedBox, mv, gain }) => {
+          const open = openId === i.id
+          return (
+            <div className={`item-card ${open ? 'open' : ''}`} key={i.id} onClick={() => setOpenId(open ? null : i.id)}>
+              <div className="row1">
+                <span className="nm">{i.name}</span>
+                <Status value={i.status} />
               </div>
-              <Status value={i.status} />
+              <div className="row2">
+                <span className="meta">
+                  {i.category || 'Senza cat.'}
+                  {i.quantity > 1 && ` ×${i.quantity}`}
+                  {i.opened_from && ` · da ${nameById[i.opened_from] || 'box'}`}
+                </span>
+                <span className="nums">
+                  <span>{eur2(i.total_cost)}</span>
+                  <span className="arr">→</span>
+                  <span>{isOpenedBox ? 'aperto' : mv != null ? eur2(mv) : i.status === 'Venduto' ? eur2(i.revenue) : '—'}</span>
+                  {gain != null && <b className={gain >= 0 ? 'up' : 'down'}>{gain >= 0 ? '+' : ''}{eur2(gain)}</b>}
+                </span>
+              </div>
+              {open && (
+                <div className="acts" onClick={e => e.stopPropagation()}>
+                  {i.tags?.length > 0 && <div className="tags">{i.tags.map(t => <span className="tag" key={t}>{t}</span>)}</div>}
+                  <RowActions i={i} isOpenedBox={isOpenedBox} />
+                </div>
+              )}
             </div>
-            <div className="figs">
-              <div>qtà<b>{i.quantity}</b></div>
-              <div>costo<b>{eur2(i.total_cost)}</b></div>
-              <div>mercato<b>{isOpenedBox ? '—' : mv != null ? eur2(mv) : i.status === 'Venduto' ? eur2(i.revenue) : '—'}</b></div>
-              <div>margine<b className={gain == null ? '' : gain >= 0 ? 'up' : 'down'}>{gain != null ? eur2(gain) : '—'}</b></div>
-            </div>
-            <div className="acts"><RowActions i={i} isOpenedBox={isOpenedBox} /></div>
-          </div>
-        ))}
+          )
+        })}
         {viewRows.length === 0 && <div className="empty">Nessun articolo corrisponde ai filtri.</div>}
       </div>
 
