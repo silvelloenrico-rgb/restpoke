@@ -9,6 +9,17 @@ const KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_57oMZ980yYpefxO
 export const supabase = createClient(URL, KEY)
 
 export const PEOPLE = ['Enrico', 'Alessandro']
+
+// Mappa email di accesso -> persona (per la collezione personale).
+export const OWNER_BY_EMAIL = {
+  'silvello.enrico@gmail.com': 'Enrico',
+  'alessandro.donaudi@gmail.com': 'Alessandro',
+}
+export function ownerFromEmail(email) {
+  const e = (email || '').toLowerCase()
+  if (OWNER_BY_EMAIL[e]) return OWNER_BY_EMAIL[e]
+  return e.includes('alessandro') ? 'Alessandro' : 'Enrico' // fallback
+}
 export const CATEGORIES = ['ETB', 'BOX', 'UPC/SPC', 'Carta Raw', 'Carta Gradata', 'Collezione']
 export const STATUSES = ['Stock', 'Venduto', 'A Gradare', 'Aperto']
 

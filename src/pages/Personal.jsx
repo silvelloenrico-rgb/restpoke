@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { supabase, STATUSES, PEOPLE } from '../lib/supabase'
+import { supabase, STATUSES, ownerFromEmail } from '../lib/supabase'
 import { eur2, summarizePersonal } from '../lib/finance'
 import { Modal, Form, Status } from '../components/ui'
 
 const FIELDS = [
   { name: 'name', label: 'Nome', required: true, full: true },
-  { name: 'owner', label: 'Proprietario', type: 'select', options: PEOPLE, required: true },
   { name: 'status', label: 'Stato', type: 'select', options: STATUSES, required: true, default: 'Stock' },
   { name: 'quantity', label: 'Quantità', type: 'number', default: 1 },
   { name: 'cost', label: 'Costo totale', type: 'number', default: 0 },
@@ -17,14 +16,15 @@ const FIELDS = [
 ]
 
 export default function Personal({ data, refresh, session }) {
-  const guess = session.user.email?.toLowerCase().includes('alessandro') ? 'Alessandro' : 'Enrico'
-  const [owner, setOwner] = useState(guess)
+  const owner = ownerFromEmail(session.user.email)
   const [modal, setModal] = useState(null)
   const rows = data.personal.filter(r => r.owner === owner)
   const s = summarizePersonal(data.personal, owner)
 
   const save = async out => {
-    const r = modal.item ? await supabase.from('personal_items').update(out).eq('id', modal.item.id) : await supabase.from('personal_items').insert(out)
+    // il proprietario è sempre l'utente connesso, non modificabile
+    const payload = { ...out, owner }
+    const r = modal.item ? await supabase.from('personal_items').update(payload).eq('id', modal.item.id) : await supabase.from('personal_items').insert(payload)
     if (r.error) throw r.error
     setModal(null); refresh()
   }
@@ -35,11 +35,8 @@ export default function Personal({ data, refresh, session }) {
   return (
     <>
       <div className="page-head">
-        <div><h1>Collezione personale</h1><p>Articoli fuori dalla società, separati per proprietario.</p></div>
+        <div><h1>Collezione di {owner}</h1><p>La tua collezione personale, fuori dalla società.</p></div>
         <button className="btn" onClick={() => setModal({ item: null })}>Aggiungi</button>
-      </div>
-      <div className="toolbar">
-        {PEOPLE.map(p => <button key={p} className={`btn ${owner === p ? '' : 'ghost'}`} onClick={() => setOwner(p)}>{p}</button>)}
       </div>
       <div className="kpis">
         <div><div className="label">In stock</div><div className="value">{s.count}</div><div className="sub">pezzi</div></div>
@@ -70,7 +67,7 @@ export default function Personal({ data, refresh, session }) {
       </div>
       {modal && (
         <Modal title={modal.item ? 'Modifica articolo' : 'Nuovo articolo personale'} onClose={() => setModal(null)}>
-          <Form fields={FIELDS} initial={modal.item || { owner }} onSubmit={save} onCancel={() => setModal(null)} onDelete={modal.item ? remove : null} />
+          <Form fields={FIELDS} initial={modal.item || {}} onSubmit={save} onCancel={() => setModal(null)} onDelete={modal.item ? remove : null} />
         </Modal>
       )}
     </>
