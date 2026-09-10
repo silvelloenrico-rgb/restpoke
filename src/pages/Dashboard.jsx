@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 import { summarize, eur, eur2 } from '../lib/finance'
+import { DataTable } from '../components/DataTable'
 
 const fmtMonth = m => {
   const [y, mo] = m.split('-')
@@ -28,6 +29,10 @@ export default function Dashboard({ data }) {
         <div className="bar">
           <div className="e" style={{ width: `${eShare * 100}%` }}>Enrico {eur(s.invested.Enrico)}</div>
           <div className="a" style={{ width: `${(1 - eShare) * 100}%` }}>{eur(s.invested.Alessandro)} Alessandro</div>
+        </div>
+        <div className="who-line">
+          <span className="e"><i />Enrico <strong>{eur2(s.invested.Enrico)}</strong></span>
+          <span className="a"><i />Alessandro <strong>{eur2(s.invested.Alessandro)}</strong></span>
         </div>
         <div className="legend">
           <span>Investito in totale <strong>{eur2(s.investedTotal)}</strong> (articoli, costi extra e raffle)</span>
@@ -97,23 +102,19 @@ export default function Dashboard({ data }) {
 
       <div className="panel">
         <h2>Posizioni con più margine latente</h2>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Articolo</th><th>Categoria</th><th className="num">Qtà</th><th className="num">Costo</th><th className="num">Mercato</th><th className="num">Margine</th></tr></thead>
-            <tbody>
-              {s.topGains.slice(0, 8).map(i => (
-                <tr key={i.id}>
-                  <td>{i.name}</td>
-                  <td className="muted">{i.category || '—'}</td>
-                  <td className="num">{i.quantity}</td>
-                  <td className="num">{eur2(i.total_cost)}</td>
-                  <td className="num">{eur2(i.market_price * i.quantity)}</td>
-                  <td className={`num ${i.gain >= 0 ? 'up' : 'down'}`}>{eur2(i.gain)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          rowKey={i => i.id}
+          rows={s.topGains.slice(0, 8)}
+          empty="Nessuna posizione con prezzo di mercato."
+          columns={[
+            { key: 'name', label: 'Articolo', primary: true, render: i => i.name },
+            { key: 'cat', label: 'Categoria', render: i => <span className="muted">{i.category || '—'}</span> },
+            { key: 'qty', label: 'Qtà', num: true, render: i => i.quantity },
+            { key: 'cost', label: 'Costo', num: true, render: i => eur2(i.total_cost) },
+            { key: 'mkt', label: 'Mercato', num: true, render: i => eur2(i.market_price * i.quantity) },
+            { key: 'gain', label: 'Margine', num: true, cls: i => (i.gain >= 0 ? 'up' : 'down'), render: i => eur2(i.gain) },
+          ]}
+        />
       </div>
     </>
   )

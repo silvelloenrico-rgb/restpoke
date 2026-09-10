@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { eur2 } from '../lib/finance'
 import { Modal, Form, Who } from '../components/ui'
+import { DataTable } from '../components/DataTable'
 
 const FIELDS = [
   { name: 'name', label: 'Nome raffle', required: true, full: true },
@@ -9,6 +10,7 @@ const FIELDS = [
   { name: 'cost_alessandro', label: 'Pagato da Alessandro', type: 'number', default: 0, who: 'a' },
   { name: 'date', label: 'Data', type: 'date', default: new Date().toISOString().slice(0, 10) },
 ]
+const d = v => (v ? new Date(v).toLocaleDateString('it-IT') : '—')
 
 export default function Raffles({ data, refresh }) {
   const [modal, setModal] = useState(null)
@@ -29,23 +31,21 @@ export default function Raffles({ data, refresh }) {
         <div><h1>Raffle</h1><p>Spesa totale {eur2(tE + tA)} — Enrico {eur2(tE)}, Alessandro {eur2(tA)}. Le carte vinte stanno in inventario col tag "Raffle Vinta".</p></div>
         <button className="btn" onClick={() => setModal({})}>Aggiungi raffle</button>
       </div>
-      <div className="panel table-wrap">
-        <table>
-          <thead><tr><th>Data</th><th>Raffle</th><th>Chi</th><th className="num">Enrico</th><th className="num">Alessandro</th><th className="num">Totale</th><th></th></tr></thead>
-          <tbody>
-            {data.raffles.map(r => (
-              <tr key={r.id}>
-                <td className="muted">{r.date ? new Date(r.date).toLocaleDateString('it-IT') : '—'}</td>
-                <td>{r.name}</td>
-                <td><Who enrico={r.cost_enrico} alessandro={r.cost_alessandro} /></td>
-                <td className="num">{eur2(r.cost_enrico)}</td>
-                <td className="num">{eur2(r.cost_alessandro)}</td>
-                <td className="num">{eur2(Number(r.cost_enrico) + Number(r.cost_alessandro))}</td>
-                <td><button className="btn ghost sm" onClick={() => setModal({ item: r })}>Modifica</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="panel">
+        <DataTable
+          rowKey={r => r.id}
+          rows={data.raffles}
+          empty="Nessun raffle registrato."
+          columns={[
+            { key: 'name', label: 'Raffle', primary: true, render: r => r.name },
+            { key: 'date', label: 'Data', render: r => <span className="muted">{d(r.date)}</span> },
+            { key: 'who', label: 'Chi', render: r => <Who enrico={r.cost_enrico} alessandro={r.cost_alessandro} /> },
+            { key: 'e', label: 'Enrico', num: true, render: r => eur2(r.cost_enrico) },
+            { key: 'a', label: 'Alessandro', num: true, render: r => eur2(r.cost_alessandro) },
+            { key: 'tot', label: 'Totale', num: true, render: r => eur2(Number(r.cost_enrico) + Number(r.cost_alessandro)) },
+            { key: 'act', label: '', actions: true, render: r => <button className="btn ghost sm" onClick={() => setModal({ item: r })}>Modifica</button> },
+          ]}
+        />
       </div>
       {modal && (
         <Modal title={modal.item ? 'Modifica raffle' : 'Nuovo raffle'} onClose={() => setModal(null)}>

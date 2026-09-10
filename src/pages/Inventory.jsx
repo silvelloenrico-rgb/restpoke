@@ -180,7 +180,7 @@ export default function Inventory({ data, refresh }) {
       </div>
 
       {/* Tabella (desktop) */}
-      <div className="panel table-wrap">
+      <div className="panel table-wrap desktop-only">
         <table>
           <thead><tr>
             <th>Articolo</th><th>Stato</th><th className="num">Qtà</th><th>Chi</th><th className="num">Costo</th><th className="num">Mercato</th><th className="num">Margine</th><th></th>

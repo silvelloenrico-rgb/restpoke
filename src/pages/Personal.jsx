@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase, STATUSES, ownerFromEmail } from '../lib/supabase'
 import { eur2, summarizePersonal } from '../lib/finance'
 import { Modal, Form, Status } from '../components/ui'
+import { DataTable } from '../components/DataTable'
 
 const FIELDS = [
   { name: 'name', label: 'Nome', required: true, full: true },
@@ -44,26 +45,23 @@ export default function Personal({ data, refresh, session }) {
         <div><div className="label">Incassato</div><div className="value">{eur2(s.revenue)}</div></div>
         <div><div className="label">Profitto sul venduto</div><div className={`value ${s.profit >= 0 ? 'up' : 'down'}`}>{eur2(s.profit)}</div></div>
       </div>
-      <div className="panel table-wrap">
-        <table>
-          <thead><tr><th>Articolo</th><th>Stato</th><th className="num">Qtà</th><th className="num">Costo</th><th className="num">Incassato</th><th className="num">Margine</th><th></th></tr></thead>
-          <tbody>
-            {rows.map(r => {
-              const gain = r.status === 'Venduto' && r.sale_price_total != null ? Number(r.sale_price_total) - Number(r.cost) : null
-              return (
-                <tr key={r.id}>
-                  <td>{r.name}</td><td><Status value={r.status} /></td>
-                  <td className="num">{r.quantity}</td>
-                  <td className="num">{eur2(r.cost)}</td>
-                  <td className="num">{r.sale_price_total != null ? eur2(r.sale_price_total) : '—'}</td>
-                  <td className={`num ${gain == null ? '' : gain >= 0 ? 'up' : 'down'}`}>{gain != null ? eur2(gain) : '—'}</td>
-                  <td><button className="btn ghost sm" onClick={() => setModal({ item: r })}>Modifica</button></td>
-                </tr>
-              )
-            })}
-            {rows.length === 0 && <tr><td colSpan={7} className="empty">Nessun articolo per {owner}.</td></tr>}
-          </tbody>
-        </table>
+      <div className="panel">
+        <DataTable
+          rowKey={r => r.id}
+          rows={rows}
+          empty={`Nessun articolo per ${owner}.`}
+          columns={[
+            { key: 'name', label: 'Articolo', primary: true, render: r => r.name },
+            { key: 'st', label: 'Stato', render: r => <Status value={r.status} /> },
+            { key: 'qty', label: 'Qtà', num: true, render: r => r.quantity },
+            { key: 'cost', label: 'Costo', num: true, render: r => eur2(r.cost) },
+            { key: 'rev', label: 'Incassato', num: true, render: r => r.sale_price_total != null ? eur2(r.sale_price_total) : '—' },
+            { key: 'gain', label: 'Margine', num: true,
+              cls: r => { const g = r.status === 'Venduto' && r.sale_price_total != null ? Number(r.sale_price_total) - Number(r.cost) : null; return g == null ? '' : g >= 0 ? 'up' : 'down' },
+              render: r => { const g = r.status === 'Venduto' && r.sale_price_total != null ? Number(r.sale_price_total) - Number(r.cost) : null; return g != null ? eur2(g) : '—' } },
+            { key: 'act', label: '', actions: true, render: r => <button className="btn ghost sm" onClick={() => setModal({ item: r })}>Modifica</button> },
+          ]}
+        />
       </div>
       {modal && (
         <Modal title={modal.item ? 'Modifica articolo' : 'Nuovo articolo personale'} onClose={() => setModal(null)}>
