@@ -1,4 +1,4 @@
-name = "restpoke-app"
+name = "restpoke"
 compatibility_date = "2026-09-10"
 
 # Sito statico servito da un Worker.
