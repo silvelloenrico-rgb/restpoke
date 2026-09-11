@@ -106,7 +106,7 @@ export default function App() {
   return (
     <div className="app">
       <nav className="nav">
-        <div className="brand">Rest<span>Poke</span></div>
+        <div className="brand"><img src="/icons/logo.webp" alt="" className="brand-logo" />Rest<span>Poke</span></div>
         {PAGES.map(([id, label, Icon]) => (
           <button key={id} className={page === id ? 'active' : ''} onClick={() => setPage(id)}>
             <Icon width={18} height={18} /> {label}
@@ -119,7 +119,7 @@ export default function App() {
       </nav>
 
       <header className="topbar">
-        <div className="brand">Rest<span>Poke</span></div>
+        <div className="brand"><img src="/icons/logo.webp" alt="" className="brand-logo" />Rest<span>Poke</span></div>
         <div className="topbar-actions">
           <PushBell session={session} compact />
           <button className="logout" onClick={() => supabase.auth.signOut()}>Esci</button>
