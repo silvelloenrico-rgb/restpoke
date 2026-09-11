@@ -1,15 +1,10 @@
-import { supabase } from '../lib/supabase'
 import { eur2 } from '../lib/finance'
 import { DataTable } from '../components/DataTable'
 
 const d = v => (v ? new Date(v).toLocaleDateString('it-IT') : '—')
 
-export default function Sales({ data, refresh }) {
+export default function Sales({ data }) {
   const total = data.sales.reduce((s, x) => s + Number(x.sale_price_total), 0)
-  const remove = async s => {
-    if (!confirm(`Eliminare la vendita di "${s.item_name}"? La quantità dell'articolo non viene ripristinata automaticamente.`)) return
-    await supabase.from('sales').delete().eq('id', s.id); refresh()
-  }
   return (
     <>
       <div className="page-head">
@@ -26,7 +21,6 @@ export default function Sales({ data, refresh }) {
             { key: 'qty', label: 'Qtà', num: true, render: s => s.quantity_sold },
             { key: 'tot', label: 'Incassato', num: true, cls: () => 'up', render: s => eur2(s.sale_price_total) },
             { key: 'by', label: 'Registrata da', render: s => <span className="muted">{s.created_by || '—'}</span> },
-            { key: 'act', label: '', actions: true, render: s => <button className="btn ghost sm danger" onClick={() => remove(s)}>Elimina</button> },
           ]}
         />
       </div>

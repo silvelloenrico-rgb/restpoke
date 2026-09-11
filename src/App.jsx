@@ -8,6 +8,7 @@ import Sales from './pages/Sales'
 import Raffles from './pages/Raffles'
 import Openings from './pages/Openings'
 import Personal from './pages/Personal'
+import Options from './pages/Options'
 
 const PAGES = [
   ['dashboard', 'Dashboard', Icons.dashboard],
@@ -16,6 +17,7 @@ const PAGES = [
   ['openings', 'Sbusti', Icons.openings],
   ['raffles', 'Raffle', Icons.raffles],
   ['personal', 'Personale', Icons.personal],
+  ['options', 'Opzioni', Icons.options],
 ]
 
 function Auth() {
@@ -101,6 +103,7 @@ export default function App() {
     openings: <Openings {...props} />,
     raffles: <Raffles {...props} />,
     personal: <Personal {...props} session={session} />,
+    options: <Options {...props} />,
   } : {}
 
   return (

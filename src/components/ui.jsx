@@ -26,7 +26,7 @@ export function Status({ value }) {
 }
 
 // Form generico: fields = [{name,label,type,options,full,who}]
-export function Form({ fields, initial = {}, onSubmit, onCancel, submitLabel = 'Salva', onDelete }) {
+export function Form({ fields, initial = {}, onSubmit, onCancel, submitLabel = 'Salva', onDelete, onChange }) {
   const [v, setV] = useState(() => {
     const o = {}
     for (const f of fields) o[f.name] = initial[f.name] ?? f.default ?? ''
@@ -34,7 +34,7 @@ export function Form({ fields, initial = {}, onSubmit, onCancel, submitLabel = '
   })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
-  const set = (k, val) => setV(s => ({ ...s, [k]: val }))
+  const set = (k, val) => setV(s => { const next = { ...s, [k]: val }; onChange?.(next); return next })
   const submit = async e => {
     e.preventDefault(); setBusy(true); setErr(null)
     const out = {}

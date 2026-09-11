@@ -1,16 +1,41 @@
 import { useMemo, useState } from 'react'
-import { supabase, CATEGORIES, STATUSES, PEOPLE } from '../lib/supabase'
+import { supabase, PEOPLE } from '../lib/supabase'
 import { eur2, childrenOf } from '../lib/finance'
 import { notifyOther } from '../lib/push'
 import { Modal, Form, Who, Status } from '../components/ui'
+import { FilterBar } from '../components/FilterBar'
+import { ItemDetail } from '../components/ItemDetail'
 
-// Modale apertura box: segna il box come aperto e registra le carte estratte (costo 0).
+function itemFields(opt, values = {}) {
+  const f = [
+    { name: 'name', label: 'Nome', required: true, full: true },
+    { name: 'category', label: 'Categoria', type: 'select', options: opt.category || [] },
+    { name: 'status', label: 'Stato', type: 'select', options: opt.status || [], required: true, default: 'Stock' },
+    { name: 'quantity', label: 'Quantità', type: 'number', default: 1 },
+    { name: 'market_price', label: 'Prezzo di mercato (unitario)', type: 'number' },
+    { name: 'language', label: 'Lingua', type: 'select', options: opt.language || [] },
+    { name: 'card_set', label: 'Set / Espansione', type: 'select', options: opt.set || [] },
+    { name: 'year', label: 'Anno', type: 'number' },
+  ]
+  if ((values.category || '').toLowerCase().includes('gradata'))
+    f.push({ name: 'grader', label: 'Casa di gradazione', type: 'select', options: opt.grader || [] })
+  f.push(
+    { name: 'cost_enrico', label: 'Pagato da Enrico', type: 'number', default: 0, who: 'e' },
+    { name: 'cost_alessandro', label: 'Pagato da Alessandro', type: 'number', default: 0, who: 'a' },
+    { name: 'purchase_date', label: 'Data acquisto', type: 'date' },
+    { name: 'tags', label: 'Tag (separati da virgola)', type: 'tags', placeholder: 'Investimento, Sbusto' },
+  )
+  return f
+}
+
 function OpenModal({ box, data, refresh, onClose }) {
+  const opt = data.opt
   const kids = childrenOf(data.items, box.id)
   const stockValue = kids.filter(k => k.status !== 'Venduto').reduce((s, k) => s + Number(k.market_price || 0) * Number(k.quantity || 0), 0)
   const revenue = kids.reduce((s, k) => s + Number(k.revenue || 0), 0)
   const value = stockValue + revenue
   const gain = value - Number(box.total_cost || 0)
+  const [cat, setCat] = useState('Carta Raw')
 
   const addCard = async out => {
     const card = { ...out, cost_enrico: 0, cost_alessandro: 0, opened_from: box.id,
@@ -36,7 +61,7 @@ function OpenModal({ box, data, refresh, onClose }) {
           <span>Resa <strong className={gain >= 0 ? 'up' : 'down'}>{eur2(gain)}</strong></span>
         </div>
         {box.status !== 'Aperto' && <div className="settle" style={{ marginTop: 12 }}>
-          Questo box risulta ancora sigillato. Aggiungi una carta estratta qui sotto (lo segna aperto da solo),
+          Ancora sigillato. Aggiungi una carta (lo segna aperto),
           oppure <button className="btn ghost sm" onClick={markOpenedOnly}>segnalo aperto senza carte</button>.
         </div>}
       </div>
@@ -58,45 +83,30 @@ function OpenModal({ box, data, refresh, onClose }) {
 
       <h3 style={{ marginBottom: 10 }}>Aggiungi carta estratta</h3>
       <Form
-        fields={[
-          { name: 'name', label: 'Nome carta', required: true, full: true },
-          { name: 'category', label: 'Categoria', type: 'select', options: CATEGORIES, default: 'Carta Raw' },
-          { name: 'status', label: 'Stato', type: 'select', options: STATUSES, required: true, default: 'Stock' },
-          { name: 'quantity', label: 'Quantità', type: 'number', default: 1 },
-          { name: 'market_price', label: 'Prezzo di mercato', type: 'number' },
-          { name: 'tags', label: 'Tag', type: 'tags', default: ['Carta Sbustata'] },
-        ]}
+        onChange={v => setCat(v.category)}
+        fields={itemFields(opt, { category: cat }).filter(x => !['cost_enrico', 'cost_alessandro', 'purchase_date'].includes(x.name))}
+        initial={{ category: 'Carta Raw', status: 'Stock', quantity: 1, tags: ['Carta Sbustata'] }}
         onSubmit={addCard} onCancel={onClose} submitLabel="Aggiungi carta"
       />
     </Modal>
   )
 }
 
-const ITEM_FIELDS = [
-  { name: 'name', label: 'Nome', required: true, full: true },
-  { name: 'category', label: 'Categoria', type: 'select', options: CATEGORIES },
-  { name: 'status', label: 'Stato', type: 'select', options: STATUSES, required: true, default: 'Stock' },
-  { name: 'quantity', label: 'Quantità', type: 'number', default: 1 },
-  { name: 'market_price', label: 'Prezzo di mercato (unitario)', type: 'number' },
-  { name: 'cost_enrico', label: 'Pagato da Enrico', type: 'number', default: 0, who: 'e' },
-  { name: 'cost_alessandro', label: 'Pagato da Alessandro', type: 'number', default: 0, who: 'a' },
-  { name: 'purchase_date', label: 'Data acquisto', type: 'date' },
-  { name: 'tags', label: 'Tag (separati da virgola)', type: 'tags', placeholder: 'Investimento, Sbusto' },
-]
-
 export default function Inventory({ data, refresh }) {
-  const [q, setQ] = useState('')
-  const [cat, setCat] = useState('')
-  const [st, setSt] = useState('')
-  const [modal, setModal] = useState(null) // {type:'new'|'edit'|'sell'|'cost'|'open', item}
-  const [openId, setOpenId] = useState(null) // scheda espansa (telefono)
+  const opt = data.opt
+  const [f, setF] = useState({})
+  const [modal, setModal] = useState(null)
+  const [formCat, setFormCat] = useState('')
 
   const rows = useMemo(() => data.items.filter(i =>
-    (!q || i.name.toLowerCase().includes(q.toLowerCase())) &&
-    (!cat || i.category === cat) && (!st || i.status === st)
-  ), [data.items, q, cat, st])
+    (!f.q || i.name.toLowerCase().includes(f.q.toLowerCase())) &&
+    (!f.category || i.category === f.category) &&
+    (!f.status || i.status === f.status) &&
+    (!f.language || i.language === f.language) &&
+    (!f.card_set || i.card_set === f.card_set) &&
+    (!f.grader || i.grader === f.grader)
+  ), [data.items, f])
 
-  // box con carte già estratte: il loro valore vive nelle carte, non nel sigillato
   const openedParents = useMemo(() => new Set(data.items.filter(i => i.opened_from).map(i => i.opened_from)), [data.items])
   const nameById = useMemo(() => Object.fromEntries(data.items.map(i => [i.id, i.name])), [data.items])
 
@@ -109,9 +119,9 @@ export default function Inventory({ data, refresh }) {
     if (modal.type === 'new') notifyOther('Nuovo articolo', `${out.name} · ${eur2(Number(out.cost_enrico || 0) + Number(out.cost_alessandro || 0))}`)
     setModal(null); refresh()
   }
-  const remove = async () => {
-    if (!confirm(`Eliminare "${modal.item.name}"? Le vendite collegate restano.`)) return
-    await supabase.from('items').delete().eq('id', modal.item.id)
+  const remove = async item => {
+    if (!confirm(`Eliminare "${item.name}"? Le vendite collegate restano.`)) return
+    await supabase.from('items').delete().eq('id', item.id)
     setModal(null); refresh()
   }
   const sell = async out => {
@@ -139,61 +149,54 @@ export default function Inventory({ data, refresh }) {
     return { i, isOpenedBox, mv, gain }
   })
 
-  const RowActions = ({ i, isOpenedBox }) => (<>
-    <button className="btn ghost sm" onClick={() => setModal({ type: 'edit', item: i })}>Modifica</button>
-    {i.status !== 'Venduto' && !i.opened_from && <button className="btn ghost sm" onClick={() => setModal({ type: 'open', item: i })}>{i.status === 'Aperto' || isOpenedBox ? 'Sbusto' : 'Apri'}</button>}
-    {i.status !== 'Venduto' && !isOpenedBox && <button className="btn ghost sm" onClick={() => setModal({ type: 'sell', item: i })}>Vendi</button>}
-    <button className="btn ghost sm" onClick={() => setModal({ type: 'cost', item: i })}>+ costo</button>
-  </>)
+  const openDetail = i => { setFormCat(i.category || ''); setModal({ type: 'detail', item: i }) }
 
   return (
     <>
       <div className="page-head">
-        <div><h1>Inventario</h1><p>{rows.length} articoli · costo totale include spedizioni e gradazioni</p></div>
-        <button className="btn" onClick={() => setModal({ type: 'new' })}>Aggiungi articolo</button>
-      </div>
-      <div className="toolbar">
-        <input type="search" placeholder="Cerca per nome" value={q} onChange={e => setQ(e.target.value)} />
-        <select value={cat} onChange={e => setCat(e.target.value)}><option value="">Tutte le categorie</option>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
-        <select value={st} onChange={e => setSt(e.target.value)}><option value="">Tutti gli stati</option>{STATUSES.map(c => <option key={c}>{c}</option>)}</select>
+        <div><h1>Inventario</h1><p>{rows.length} articoli · tocca un articolo per i dettagli</p></div>
+        <button className="btn" onClick={() => { setFormCat(''); setModal({ type: 'new' }) }}>Aggiungi articolo</button>
       </div>
 
-      {/* Schede (telefono): compatte, tocca per vedere i pulsanti */}
+      <FilterBar
+        page="inventory" saved={data.filters} refresh={refresh}
+        value={f} onChange={setF}
+        spec={[
+          { key: 'q', type: 'search', placeholder: 'Cerca per nome' },
+          { key: 'category', type: 'select', label: 'Categoria', options: opt.category },
+          { key: 'status', type: 'select', label: 'Stato', options: opt.status },
+          { key: 'language', type: 'select', label: 'Lingua', options: opt.language },
+          { key: 'card_set', type: 'select', label: 'Set', options: opt.set },
+          { key: 'grader', type: 'select', label: 'Gradazione', options: opt.grader },
+        ]}
+      />
+
       <div className="card-list">
-        {viewRows.map(({ i, isOpenedBox, mv, gain }) => {
-          const open = openId === i.id
-          return (
-            <div className={`item-card ${open ? 'open' : ''}`} key={i.id} onClick={() => setOpenId(open ? null : i.id)}>
-              <div className="row1">
-                <span className="nm">{i.name}</span>
-                <Status value={i.status} />
-              </div>
-              <div className="row2">
-                <span className="meta">
-                  {i.category || 'Senza cat.'}
-                  {i.quantity > 1 && ` ×${i.quantity}`}
-                  {i.opened_from && ` · da ${nameById[i.opened_from] || 'box'}`}
-                </span>
-                <span className="nums">
-                  <span>{eur2(i.total_cost)}</span>
-                  <span className="arr">→</span>
-                  <span>{isOpenedBox ? 'aperto' : mv != null ? eur2(mv) : i.status === 'Venduto' ? eur2(i.revenue) : '—'}</span>
-                  {gain != null && <b className={gain >= 0 ? 'up' : 'down'}>{gain >= 0 ? '+' : ''}{eur2(gain)}</b>}
-                </span>
-              </div>
-              {open && (
-                <div className="acts" onClick={e => e.stopPropagation()}>
-                  {i.tags?.length > 0 && <div className="tags">{i.tags.map(t => <span className="tag" key={t}>{t}</span>)}</div>}
-                  <RowActions i={i} isOpenedBox={isOpenedBox} />
-                </div>
-              )}
+        {viewRows.map(({ i, isOpenedBox, mv, gain }) => (
+          <div className="item-card" key={i.id} onClick={() => openDetail(i)}>
+            <div className="row1">
+              <span className="nm">{i.name}</span>
+              <Status value={i.status} />
             </div>
-          )
-        })}
+            <div className="row2">
+              <span className="meta">
+                {i.category || 'Senza cat.'}
+                {i.quantity > 1 && ` ×${i.quantity}`}
+                {i.language && ` · ${i.language}`}
+                {i.opened_from && ` · da ${nameById[i.opened_from] || 'box'}`}
+              </span>
+              <span className="nums">
+                <span>{eur2(i.total_cost)}</span>
+                <span className="arr">→</span>
+                <span>{isOpenedBox ? 'aperto' : mv != null ? eur2(mv) : i.status === 'Venduto' ? eur2(i.revenue) : '—'}</span>
+                {gain != null && <b className={gain >= 0 ? 'up' : 'down'}>{gain >= 0 ? '+' : ''}{eur2(gain)}</b>}
+              </span>
+            </div>
+          </div>
+        ))}
         {viewRows.length === 0 && <div className="empty">Nessun articolo corrisponde ai filtri.</div>}
       </div>
 
-      {/* Tabella (desktop) */}
       <div className="panel table-wrap desktop-only">
         <table>
           <thead><tr>
@@ -201,37 +204,63 @@ export default function Inventory({ data, refresh }) {
           </tr></thead>
           <tbody>
             {viewRows.map(({ i, isOpenedBox, mv, gain }) => (
-                <tr key={i.id}>
-                  <td>
-                    <div>{i.name}</div>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {i.category || 'Senza categoria'}
-                      {i.opened_from && <span className="tag" title="Carta estratta da uno sbusto">da: {nameById[i.opened_from] || 'box'}</span>}
-                      {i.tags?.map(t => <span className="tag" key={t}>{t}</span>)}
-                    </div>
-                  </td>
-                  <td><Status value={i.status} /></td>
-                  <td className="num">{i.quantity}</td>
-                  <td><Who enrico={Number(i.cost_enrico) + Number(i.extra_enrico)} alessandro={Number(i.cost_alessandro) + Number(i.extra_alessandro)} /></td>
-                  <td className="num">{eur2(i.total_cost)}</td>
-                  <td className="num">{isOpenedBox ? <span className="muted">aperto</span> : mv != null ? eur2(mv) : i.status === 'Venduto' ? <span className="muted">venduto {eur2(i.revenue)}</span> : '—'}</td>
-                  <td className={`num ${gain == null ? '' : gain >= 0 ? 'up' : 'down'}`}>{gain != null ? eur2(gain) : '—'}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}><RowActions i={i} isOpenedBox={isOpenedBox} /></td>
-                </tr>
+              <tr key={i.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(i)}>
+                <td>
+                  <div>{i.name}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {[i.category || 'Senza categoria', i.language, i.card_set].filter(Boolean).join(' · ')}
+                    {i.opened_from && <span className="tag" title="Carta estratta da uno sbusto">da: {nameById[i.opened_from] || 'box'}</span>}
+                    {i.tags?.map(t => <span className="tag" key={t}>{t}</span>)}
+                  </div>
+                </td>
+                <td><Status value={i.status} /></td>
+                <td className="num">{i.quantity}</td>
+                <td><Who enrico={Number(i.cost_enrico) + Number(i.extra_enrico)} alessandro={Number(i.cost_alessandro) + Number(i.extra_alessandro)} /></td>
+                <td className="num">{eur2(i.total_cost)}</td>
+                <td className="num">{isOpenedBox ? <span className="muted">aperto</span> : mv != null ? eur2(mv) : i.status === 'Venduto' ? <span className="muted">venduto {eur2(i.revenue)}</span> : '—'}</td>
+                <td className={`num ${gain == null ? '' : gain >= 0 ? 'up' : 'down'}`}>{gain != null ? eur2(gain) : '—'}</td>
+                <td className="muted" style={{ fontSize: 18 }}>›</td>
+              </tr>
             ))}
             {viewRows.length === 0 && <tr><td colSpan={8} className="empty">Nessun articolo corrisponde ai filtri.</td></tr>}
           </tbody>
         </table>
       </div>
 
+      {modal?.type === 'detail' && (() => {
+        const i = modal.item
+        const isOpenedBox = openedParents.has(i.id)
+        const acts = [{ type: 'edit', label: 'Modifica', primary: true }]
+        if (i.status !== 'Venduto' && !i.opened_from) acts.push({ type: 'open', label: i.status === 'Aperto' || isOpenedBox ? 'Gestisci sbusto' : 'Apri (sbusta)' })
+        if (i.status !== 'Venduto' && !isOpenedBox) acts.push({ type: 'sell', label: 'Vendi' })
+        acts.push({ type: 'cost', label: 'Aggiungi costo' }, { type: 'delete', label: 'Elimina', danger: true })
+        return (
+          <ItemDetail
+            item={i} onClose={() => setModal(null)}
+            extra={{
+              subtitle: <div className="muted">Costo totale {eur2(i.total_cost)}{i.opened_from && ` · estratto da ${nameById[i.opened_from] || 'box'}`}</div>,
+              rows: [
+                ['Pagato da', <Who enrico={Number(i.cost_enrico) + Number(i.extra_enrico)} alessandro={Number(i.cost_alessandro) + Number(i.extra_alessandro)} key="w" />],
+                ['Margine', isOpenedBox ? 'box aperto' : (i.market_price != null && i.status !== 'Venduto' ? eur2(i.market_price * i.quantity - i.total_cost) : i.status === 'Venduto' ? eur2(i.revenue - i.total_cost) : null)],
+              ],
+            }}
+            actions={acts}
+            onAction={t => { if (t === 'delete') remove(i); else setModal({ type: t, item: i }) }}
+          />
+        )
+      })()}
+
       {modal && (modal.type === 'new' || modal.type === 'edit') && (
         <Modal title={modal.type === 'new' ? 'Nuovo articolo' : 'Modifica articolo'} onClose={() => setModal(null)}>
-          <Form fields={ITEM_FIELDS} initial={modal.item || {}} onSubmit={save} onCancel={() => setModal(null)} onDelete={modal.item ? remove : null} />
+          <Form
+            fields={itemFields(opt, { category: formCat })}
+            initial={modal.item || {}}
+            onChange={v => setFormCat(v.category)}
+            onSubmit={save} onCancel={() => setModal(null)} onDelete={modal.item ? () => remove(modal.item) : null}
+          />
         </Modal>
       )}
-      {modal?.type === 'open' && (
-        <OpenModal box={modal.item} data={data} refresh={refresh} onClose={() => setModal(null)} />
-      )}
+      {modal?.type === 'open' && <OpenModal box={modal.item} data={data} refresh={refresh} onClose={() => setModal(null)} />}
       {modal?.type === 'sell' && (
         <Modal title={`Vendi: ${modal.item.name}`} onClose={() => setModal(null)}>
           <Form fields={[
