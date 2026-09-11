@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-// Barra filtri riutilizzabile con salvataggio.
-// spec: [{ key, label, type:'search'|'select'|'multi', options?, placeholder? }]
-// value: oggetto { key: valore }  · onChange(nuovoValore)
-// page: nome pagina per i filtri salvati · saved: righe di saved_filters · refresh
 export function FilterBar({ page, spec, value, onChange, saved = [], refresh }) {
+  const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const set = (k, v) => onChange({ ...value, [k]: v })
   const clear = () => onChange({})
-  const active = Object.values(value).some(v => v && (Array.isArray(v) ? v.length : true))
+  const activeCount = Object.entries(value).filter(([, v]) => v && (Array.isArray(v) ? v.length : true)).length
   const mine = saved.filter(f => f.page === page)
 
   const saveCurrent = async () => {
@@ -19,25 +16,44 @@ export function FilterBar({ page, spec, value, onChange, saved = [], refresh }) 
     await supabase.from('saved_filters').insert({ page, name, filters: value })
     setSaving(false); refresh()
   }
-  const applySaved = id => { const f = mine.find(x => x.id === id); if (f) onChange(f.filters || {}) }
+  const applySaved = id => { const f = mine.find(x => x.id === id); if (f) { onChange(f.filters || {}); setOpen(true) } }
   const delSaved = async id => { if (confirm('Eliminare questo filtro salvato?')) { await supabase.from('saved_filters').delete().eq('id', id); refresh() } }
+
+  const search = spec.find(f => f.type === 'search')
+  const selects = spec.filter(f => f.type === 'select')
 
   return (
     <div className="filterbar">
-      <div className="toolbar">
-        {spec.map(f => {
-          if (f.type === 'search') return <input key={f.key} type="search" placeholder={f.placeholder || 'Cerca'} value={value[f.key] || ''} onChange={e => set(f.key, e.target.value)} />
-          if (f.type === 'select') return (
-            <select key={f.key} value={value[f.key] || ''} onChange={e => set(f.key, e.target.value)}>
-              <option value="">{f.label}: tutti</option>
-              {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          )
-          return null
-        })}
-        {active && <button className="btn ghost sm" onClick={clear}>Azzera</button>}
-        {active && <button className="btn ghost sm" onClick={saveCurrent} disabled={saving}>Salva filtro</button>}
+      <div className="filter-top">
+        {search && (
+          <input className="filter-search" type="search" placeholder={search.placeholder || 'Cerca'}
+                 value={value[search.key] || ''} onChange={e => set(search.key, e.target.value)} />
+        )}
+        <button className={`btn ghost filter-toggle ${activeCount ? 'has' : ''}`} onClick={() => setOpen(o => !o)}>
+          Filtri{activeCount ? ` · ${activeCount}` : ''} {open ? '▲' : '▼'}
+        </button>
       </div>
+
+      {open && (
+        <div className="filter-panel">
+          <div className="filter-grid">
+            {selects.map(f => (
+              <label className="flt" key={f.key}>
+                <span>{f.label}</span>
+                <select value={value[f.key] || ''} onChange={e => set(f.key, e.target.value)}>
+                  <option value="">Tutte</option>
+                  {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+          <div className="filter-buttons">
+            {activeCount > 0 && <button className="btn ghost sm" onClick={clear}>Azzera</button>}
+            {activeCount > 0 && <button className="btn sm" onClick={saveCurrent} disabled={saving}>Salva questo filtro</button>}
+          </div>
+        </div>
+      )}
+
       {mine.length > 0 && (
         <div className="saved-chips">
           {mine.map(f => (
