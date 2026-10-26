@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { db } from '../lib/db'
 import { eur2 } from '../lib/finance'
 import { Modal, Form, Who } from '../components/ui'
+import { Icons } from '../components/icons'
 import { DataTable } from '../components/DataTable'
 import { notifyOther } from '../lib/push'
 
@@ -31,7 +32,7 @@ export default function Raffles({ data, refresh }) {
     <>
       <div className="page-head">
         <div><h1>Raffle</h1><p>Spesa totale {eur2(tE + tA)} — Enrico {eur2(tE)}, Alessandro {eur2(tA)}. Le carte vinte stanno in inventario col tag "Raffle Vinta".</p></div>
-        <button className="btn" onClick={() => setModal({})}>Aggiungi raffle</button>
+        <button className="btn fab" onClick={() => setModal({})}><Icons.plus width={18} height={18} />Aggiungi raffle</button>
       </div>
       <div className="panel">
         <DataTable

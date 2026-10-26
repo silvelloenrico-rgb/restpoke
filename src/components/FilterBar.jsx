@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { db } from '../lib/db'
+import { Icons } from './icons'
 
 export function FilterBar({ page, spec, value, onChange, saved = [], refresh }) {
   const [open, setOpen] = useState(false)
@@ -29,8 +30,9 @@ export function FilterBar({ page, spec, value, onChange, saved = [], refresh }) 
           <input className="filter-search" type="search" placeholder={search.placeholder || 'Cerca'}
                  value={value[search.key] || ''} onChange={e => set(search.key, e.target.value)} />
         )}
-        <button className={`btn ghost filter-toggle ${activeCount ? 'has' : ''}`} onClick={() => setOpen(o => !o)}>
-          Filtri{activeCount ? ` · ${activeCount}` : ''} {open ? '▲' : '▼'}
+        <button className={`btn ghost filter-toggle ${activeCount ? 'has' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open}>
+          Filtri{activeCount ? ` · ${activeCount}` : ''}
+          <Icons.chevronDown width={16} height={16} className={`chev ${open ? 'open' : ''}`} />
         </button>
       </div>
 

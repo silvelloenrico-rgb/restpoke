@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { db } from '../lib/db'
-import { eur2, summarizePersonal } from '../lib/finance'
+import { eur2, tone, summarizePersonal } from '../lib/finance'
 import { Modal, Form, Status } from '../components/ui'
+import { Icons } from '../components/icons'
 import { DataTable } from '../components/DataTable'
 import { FilterBar } from '../components/FilterBar'
 import { ItemDetail } from '../components/ItemDetail'
@@ -28,6 +29,8 @@ function fields(opt, values = {}) {
   )
   return f
 }
+
+const gainOf = r => (r.status === 'Venduto' && r.sale_price_total != null ? Number(r.sale_price_total) - Number(r.cost) : null)
 
 export default function Personal({ data, refresh, session }) {
   const owner = session.owner
@@ -62,14 +65,14 @@ export default function Personal({ data, refresh, session }) {
     <>
       <div className="page-head">
         <div><h1>Collezione di {owner}</h1><p>La tua collezione personale · tocca un articolo per i dettagli.</p></div>
-        <button className="btn" onClick={() => { setFormCat(''); setModal({ type: 'new' }) }}>Aggiungi</button>
+        <button className="btn fab" onClick={() => { setFormCat(''); setModal({ type: 'new' }) }}><Icons.plus width={18} height={18} />Aggiungi</button>
       </div>
 
       <div className="kpis">
         <div><div className="label">In stock</div><div className="value">{s.count}</div><div className="sub">pezzi</div></div>
         <div><div className="label">Costo stock</div><div className="value">{eur2(s.stockCost)}</div></div>
         <div><div className="label">Incassato</div><div className="value">{eur2(s.revenue)}</div></div>
-        <div><div className="label">Profitto sul venduto</div><div className={`value ${s.profit >= 0 ? 'up' : 'down'}`}>{eur2(s.profit)}</div></div>
+        <div><div className="label">Profitto sul venduto</div><div className={`value ${tone(s.profit)}`}>{eur2(s.profit)}</div></div>
       </div>
 
       <FilterBar
@@ -89,23 +92,21 @@ export default function Personal({ data, refresh, session }) {
           rowKey={r => r.id}
           rows={rows}
           empty={`Nessun articolo per ${owner}.`}
+          onRowClick={openDetail}
           columns={[
             { key: 'name', label: 'Articolo', primary: true, render: r => r.name },
             { key: 'st', label: 'Stato', render: r => <Status value={r.status} /> },
             { key: 'qty', label: 'Qtà', num: true, render: r => r.quantity },
             { key: 'cost', label: 'Costo', num: true, render: r => eur2(r.cost) },
             { key: 'rev', label: 'Incassato', num: true, render: r => r.sale_price_total != null ? eur2(r.sale_price_total) : '—' },
-            { key: 'gain', label: 'Margine', num: true,
-              cls: r => { const g = r.status === 'Venduto' && r.sale_price_total != null ? Number(r.sale_price_total) - Number(r.cost) : null; return g == null ? '' : g >= 0 ? 'up' : 'down' },
-              render: r => { const g = r.status === 'Venduto' && r.sale_price_total != null ? Number(r.sale_price_total) - Number(r.cost) : null; return g != null ? eur2(g) : '—' } },
-            { key: 'act', label: '', actions: true, render: r => <button className="btn ghost sm" onClick={() => openDetail(r)}>Dettagli</button> },
+            { key: 'gain', label: 'Margine', num: true, cls: r => tone(gainOf(r)), render: r => gainOf(r) != null ? eur2(gainOf(r)) : '—' },
           ]}
         />
       </div>
 
       {modal?.type === 'detail' && (() => {
         const i = modal.item
-        const g = i.status === 'Venduto' && i.sale_price_total != null ? Number(i.sale_price_total) - Number(i.cost) : null
+        const g = gainOf(i)
         return (
           <ItemDetail
             item={{ ...i, market_price: i.market_price }} onClose={() => setModal(null)}

@@ -1,6 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export function Modal({ title, onClose, children }) {
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} role="dialog" aria-label={title}>
@@ -51,8 +56,8 @@ export function Form({ fields, initial = {}, onSubmit, onCancel, submitLabel = '
   return (
     <form className="form" onSubmit={submit}>
       {fields.map(f => (
-        <label key={f.name} className={`${f.full ? 'full' : ''} ${f.who ? 'who-input ' + f.who : ''}`}>
-          {f.label}
+        <label key={f.name} className={f.full ? 'full' : ''}>
+          <span className="lbl">{f.who && <i className={`who-dot ${f.who}`} />}{f.label}</span>
           {f.type === 'select'
             ? <select value={v[f.name] ?? ''} onChange={e => set(f.name, e.target.value)} required={f.required}>
                 {!f.required && <option value="">—</option>}

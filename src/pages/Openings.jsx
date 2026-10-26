@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { summarizeOpenings, eur2 } from '../lib/finance'
+import { summarizeOpenings, eur2, tone } from '../lib/finance'
 import { Status } from '../components/ui'
 import { DataTable } from '../components/DataTable'
 
@@ -9,6 +9,8 @@ export default function Openings({ data }) {
   const boxes = useMemo(() => summarizeOpenings(data.items), [data.items])
   const totCost = boxes.reduce((s, b) => s + b.cost, 0)
   const totValue = boxes.reduce((s, b) => s + b.value, 0)
+  const withCards = boxes.filter(b => b.kids.length > 0)
+  const empty = boxes.filter(b => b.kids.length === 0)
 
   return (
     <>
@@ -25,7 +27,7 @@ export default function Openings({ data }) {
         </div>
       )}
 
-      {boxes.map(({ box, kids, cost, value, gain }) => (
+      {withCards.map(({ box, kids, cost, value, gain }) => (
         <section className="opening" key={box.id}>
           <div className="opening-head">
             <div>
@@ -35,23 +37,41 @@ export default function Openings({ data }) {
             <div className="opening-figs">
               <div>costo<b>{eur2(cost)}</b></div>
               <div>estratto<b>{eur2(value)}</b></div>
-              <div>{gain >= 0 ? 'resa' : 'perdita'}<b className={gain >= 0 ? 'up' : 'down'}>{eur2(gain)}</b></div>
+              <div>resa<b className={tone(gain)}>{eur2(gain)}</b></div>
             </div>
           </div>
-          {kids.length === 0
-            ? <p className="muted" style={{ margin: '8px 0 0' }}>Ancora nessuna carta registrata. Aprilo dall'inventario (pulsante "Sbusto") per aggiungerle.</p>
-            : <DataTable
-                rowKey={k => k.id}
-                rows={kids}
-                columns={[
-                  { key: 'name', label: 'Carta', primary: true, render: k => k.name },
-                  { key: 'st', label: 'Stato', render: k => <Status value={k.status} /> },
-                  { key: 'qty', label: 'Qtà', num: true, render: k => k.quantity },
-                  { key: 'val', label: 'Valore / incasso', num: true, render: k => k.status === 'Venduto' ? <span className="up">incassato {eur2(k.revenue)}</span> : eur2(Number(k.market_price || 0) * Number(k.quantity || 0)) },
-                ]}
-              />}
+          <DataTable
+            rowKey={k => k.id}
+            rows={kids}
+            columns={[
+              { key: 'name', label: 'Carta', primary: true, render: k => k.name },
+              { key: 'st', label: 'Stato', render: k => <Status value={k.status} /> },
+              { key: 'qty', label: 'Qtà', num: true, render: k => k.quantity },
+              { key: 'val', label: 'Valore / incasso', num: true, render: k => k.status === 'Venduto' ? <span className="up">incassato {eur2(k.revenue)}</span> : eur2(Number(k.market_price || 0) * Number(k.quantity || 0)) },
+            ]}
+          />
         </section>
       ))}
+
+      {empty.length > 0 && (
+        <section className="opening">
+          <div className="opening-head">
+            <div>
+              <h2>Senza carte registrate</h2>
+              <div className="muted" style={{ fontSize: 13 }}>Per aggiungere le carte: Inventario → tocca il box → Gestisci sbusto.</div>
+            </div>
+          </div>
+          <DataTable
+            rowKey={b => b.box.id}
+            rows={empty}
+            columns={[
+              { key: 'name', label: 'Box', primary: true, render: b => b.box.name },
+              { key: 'date', label: 'Aperto il', render: b => <span className="muted">{d(b.box.opened_date) || '—'}</span> },
+              { key: 'cost', label: 'Costo', num: true, render: b => eur2(b.cost) },
+            ]}
+          />
+        </section>
+      )}
     </>
   )
 }

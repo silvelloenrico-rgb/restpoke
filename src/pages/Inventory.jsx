@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { db, PEOPLE } from '../lib/db'
-import { eur2, childrenOf } from '../lib/finance'
+import { eur2, tone, childrenOf } from '../lib/finance'
+import { Icons } from '../components/icons'
 import { notifyOther } from '../lib/push'
 import { Modal, Form, Who, Status } from '../components/ui'
 import { FilterBar } from '../components/FilterBar'
@@ -58,7 +59,7 @@ function OpenModal({ box, data, refresh, onClose }) {
         <div className="legend">
           <span>Costo del box <strong>{eur2(box.total_cost)}</strong></span>
           <span>Valore carte estratte <strong>{eur2(value)}</strong></span>
-          <span>Resa <strong className={gain >= 0 ? 'up' : 'down'}>{eur2(gain)}</strong></span>
+          <span>Resa <strong className={tone(gain)}>{eur2(gain)}</strong></span>
         </div>
         {box.status !== 'Aperto' && <div className="settle" style={{ marginTop: 12 }}>
           Ancora sigillato. Aggiungi una carta (lo segna aperto),
@@ -154,8 +155,11 @@ export default function Inventory({ data, refresh }) {
   return (
     <>
       <div className="page-head">
-        <div><h1>Inventario</h1><p>{rows.length} articoli · tocca un articolo per i dettagli</p></div>
-        <button className="btn" onClick={() => { setFormCat(''); setModal({ type: 'new' }) }}>Aggiungi articolo</button>
+        <div>
+          <h1>Inventario</h1>
+          <p>{rows.length} articoli · pagato da <span className="who-key"><i className="e" />Enrico <i className="a" />Alessandro</span></p>
+        </div>
+        <button className="btn fab" onClick={() => { setFormCat(''); setModal({ type: 'new' }) }}><Icons.plus width={18} height={18} />Aggiungi articolo</button>
       </div>
 
       <FilterBar
@@ -180,8 +184,10 @@ export default function Inventory({ data, refresh }) {
             </div>
             <div className="row2">
               <span className="meta">
+                <Who enrico={Number(i.cost_enrico) + Number(i.extra_enrico)} alessandro={Number(i.cost_alessandro) + Number(i.extra_alessandro)} />{' '}
                 {i.category || 'Senza cat.'}
                 {i.quantity > 1 && ` ×${i.quantity}`}
+                {i.grader && ` · ${i.grader}`}
                 {i.language && ` · ${i.language}`}
                 {i.opened_from && ` · da ${nameById[i.opened_from] || 'box'}`}
               </span>
@@ -189,7 +195,7 @@ export default function Inventory({ data, refresh }) {
                 <span>{eur2(i.total_cost)}</span>
                 <span className="arr">→</span>
                 <span>{isOpenedBox ? 'aperto' : mv != null ? eur2(mv) : i.status === 'Venduto' ? eur2(i.revenue) : '—'}</span>
-                {gain != null && <b className={gain >= 0 ? 'up' : 'down'}>{gain >= 0 ? '+' : ''}{eur2(gain)}</b>}
+                {gain != null && <b className={tone(gain)}>{gain > 0.004 ? '+' : ''}{eur2(gain)}</b>}
               </span>
             </div>
           </div>
@@ -207,8 +213,8 @@ export default function Inventory({ data, refresh }) {
               <tr key={i.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(i)}>
                 <td>
                   <div>{i.name}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    {[i.category || 'Senza categoria', i.language, i.card_set].filter(Boolean).join(' · ')}
+                  <div className="muted item-meta">
+                    <span>{[i.category || 'Senza categoria', i.grader, i.language, i.card_set].filter(Boolean).join(' · ')}</span>
                     {i.opened_from && <span className="tag" title="Carta estratta da uno sbusto">da: {nameById[i.opened_from] || 'box'}</span>}
                     {i.tags?.map(t => <span className="tag" key={t}>{t}</span>)}
                   </div>
@@ -218,8 +224,8 @@ export default function Inventory({ data, refresh }) {
                 <td><Who enrico={Number(i.cost_enrico) + Number(i.extra_enrico)} alessandro={Number(i.cost_alessandro) + Number(i.extra_alessandro)} /></td>
                 <td className="num">{eur2(i.total_cost)}</td>
                 <td className="num">{isOpenedBox ? <span className="muted">aperto</span> : mv != null ? eur2(mv) : i.status === 'Venduto' ? <span className="muted">venduto {eur2(i.revenue)}</span> : '—'}</td>
-                <td className={`num ${gain == null ? '' : gain >= 0 ? 'up' : 'down'}`}>{gain != null ? eur2(gain) : '—'}</td>
-                <td className="muted" style={{ fontSize: 18 }}>›</td>
+                <td className={`num ${tone(gain)}`}>{gain != null ? eur2(gain) : '—'}</td>
+                <td className="go"><Icons.chevronRight width={16} height={16} /></td>
               </tr>
             ))}
             {viewRows.length === 0 && <tr><td colSpan={8} className="empty">Nessun articolo corrisponde ai filtri.</td></tr>}

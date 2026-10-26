@@ -5,6 +5,8 @@ export const eur = v =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n(v))
 export const eur2 = v =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n(v))
+// classe colore per un guadagno/perdita: zero (o meno di un centesimo) resta neutro
+export const tone = v => (v == null || Math.abs(v) < 0.005 ? '' : v > 0 ? 'up' : 'down')
 export const pct = v => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(0)}%`
 
 export function summarize({ items, sales, costs, raffles }) {

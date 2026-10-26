@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
-import { summarize, eur, eur2 } from '../lib/finance'
+import { summarize, eur, eur2, tone } from '../lib/finance'
 import { DataTable } from '../components/DataTable'
 
 const fmtMonth = m => {
@@ -46,25 +46,25 @@ export default function Dashboard({ data }) {
       </section>
 
       <div className="kpis">
+        <div className="lead">
+          <div className="label">Se vendeste tutto oggi</div>
+          <div className={`value ${tone(s.equity)}`}>{s.equity > 0 ? '+' : ''}{eur(s.equity)}</div>
+          <div className="sub">guadagno complessivo, di cui {eur(s.unrealized)} di margine sulla merce in magazzino</div>
+        </div>
+        <div>
+          <div className="label">Valore stock a mercato</div>
+          <div className="value">{eur(s.stockValue)}</div>
+          <div className="sub">pagato {eur(s.stockCost)}</div>
+        </div>
         <div>
           <div className="label">Incassato dalle vendite</div>
           <div className="value">{eur(s.revenue)}</div>
           <div className="sub">{data.sales.length} vendite</div>
         </div>
         <div>
-          <div className="label">Risultato di cassa</div>
-          <div className={`value ${s.realized >= 0 ? 'up' : 'down'}`}>{eur(s.realized)}</div>
-          <div className="sub">incassato meno tutto l'investito</div>
-        </div>
-        <div>
-          <div className="label">Valore stock a mercato</div>
-          <div className="value">{eur(s.stockValue)}</div>
-          <div className="sub">costo {eur(s.stockCost)}</div>
-        </div>
-        <div>
-          <div className="label">Se vendeste tutto oggi</div>
-          <div className={`value ${s.equity >= 0 ? 'up' : 'down'}`}>{eur(s.equity)}</div>
-          <div className="sub">di cui latente {eur(s.unrealized)}</div>
+          <div className="label">Cassa netta</div>
+          <div className="value">{eur(s.realized)}</div>
+          <div className="sub">incassato meno investito: resta negativa finché la merce è in magazzino</div>
         </div>
       </div>
 
@@ -112,7 +112,7 @@ export default function Dashboard({ data }) {
             { key: 'qty', label: 'Qtà', num: true, render: i => i.quantity },
             { key: 'cost', label: 'Costo', num: true, render: i => eur2(i.total_cost) },
             { key: 'mkt', label: 'Mercato', num: true, render: i => eur2(i.market_price * i.quantity) },
-            { key: 'gain', label: 'Margine', num: true, cls: i => (i.gain >= 0 ? 'up' : 'down'), render: i => eur2(i.gain) },
+            { key: 'gain', label: 'Margine', num: true, cls: i => tone(i.gain), render: i => eur2(i.gain) },
           ]}
         />
       </div>
