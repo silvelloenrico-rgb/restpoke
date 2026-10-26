@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 
 export function FilterBar({ page, spec, value, onChange, saved = [], refresh }) {
   const [open, setOpen] = useState(false)
@@ -13,11 +13,11 @@ export function FilterBar({ page, spec, value, onChange, saved = [], refresh }) 
     const name = prompt('Nome del filtro salvato:')
     if (!name) return
     setSaving(true)
-    await supabase.from('saved_filters').insert({ page, name, filters: value })
+    await db.from('saved_filters').insert({ page, name, filters: value })
     setSaving(false); refresh()
   }
   const applySaved = id => { const f = mine.find(x => x.id === id); if (f) { onChange(f.filters || {}); setOpen(true) } }
-  const delSaved = async id => { if (confirm('Eliminare questo filtro salvato?')) { await supabase.from('saved_filters').delete().eq('id', id); refresh() } }
+  const delSaved = async id => { if (confirm('Eliminare questo filtro salvato?')) { await db.from('saved_filters').delete().eq('id', id); refresh() } }
 
   const search = spec.find(f => f.type === 'search')
   const selects = spec.filter(f => f.type === 'select')

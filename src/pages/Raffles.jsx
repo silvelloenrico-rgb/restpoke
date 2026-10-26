@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import { eur2 } from '../lib/finance'
 import { Modal, Form, Who } from '../components/ui'
 import { DataTable } from '../components/DataTable'
@@ -18,14 +18,14 @@ export default function Raffles({ data, refresh }) {
   const tE = data.raffles.reduce((s, r) => s + Number(r.cost_enrico), 0)
   const tA = data.raffles.reduce((s, r) => s + Number(r.cost_alessandro), 0)
   const save = async out => {
-    const r = modal.item ? await supabase.from('raffles').update(out).eq('id', modal.item.id) : await supabase.from('raffles').insert(out)
+    const r = modal.item ? await db.from('raffles').update(out).eq('id', modal.item.id) : await db.from('raffles').insert(out)
     if (r.error) throw r.error
     if (!modal.item) notifyOther('Nuovo raffle', `${out.name} · ${eur2(Number(out.cost_enrico || 0) + Number(out.cost_alessandro || 0))}`)
     setModal(null); refresh()
   }
   const remove = async () => {
     if (!confirm('Eliminare questo raffle?')) return
-    await supabase.from('raffles').delete().eq('id', modal.item.id); setModal(null); refresh()
+    await db.from('raffles').delete().eq('id', modal.item.id); setModal(null); refresh()
   }
   return (
     <>

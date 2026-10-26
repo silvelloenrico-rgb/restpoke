@@ -1,8 +1,25 @@
 name = "restpoke"
-compatibility_date = "2026-09-10"
+main = "worker/index.js"
+compatibility_date = "2026-10-01"
 
-# Sito statico servito da un Worker.
-# not_found_handling = SPA: qualsiasi indirizzo ricade su index.html (routing lato client).
+# Sito statico (dist/) + API nel Worker. not_found_handling = SPA: ogni indirizzo ricade su index.html.
 [assets]
 directory = "./dist"
+binding = "ASSETS"
 not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "restpoke"
+database_id = "f18ef3e1-a066-4a4b-8026-e4e2753e2649"
+migrations_dir = "migrations"
+
+# Max 5 tentativi di login al minuto per IP.
+[[ratelimits]]
+name = "LOGIN_LIMITER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+# Secrets (npx wrangler secret put <NOME>): VAPID_PRIVATE_JWK, SESSION_SECRET
+# In locale stanno in .dev.vars

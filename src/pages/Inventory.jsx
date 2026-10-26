@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { supabase, PEOPLE } from '../lib/supabase'
+import { db, PEOPLE } from '../lib/db'
 import { eur2, childrenOf } from '../lib/finance'
 import { notifyOther } from '../lib/push'
 import { Modal, Form, Who, Status } from '../components/ui'
@@ -41,14 +41,14 @@ function OpenModal({ box, data, refresh, onClose }) {
     const card = { ...out, cost_enrico: 0, cost_alessandro: 0, opened_from: box.id,
       purchase_date: box.purchase_date, created_by: box.created_by,
       tags: out.tags?.length ? out.tags : ['Carta Sbustata'] }
-    const { error } = await supabase.from('items').insert(card)
+    const { error } = await db.from('items').insert(card)
     if (error) throw error
     if (box.status !== 'Aperto') await markOpened()
     notifyOther('Sbusto', `Da ${box.name}: ${out.name}${out.market_price ? ' · ' + eur2(out.market_price) : ''}`)
     refresh()
   }
   const markOpened = async () => {
-    await supabase.from('items').update({ status: 'Aperto', opened_date: new Date().toISOString().slice(0, 10) }).eq('id', box.id)
+    await db.from('items').update({ status: 'Aperto', opened_date: new Date().toISOString().slice(0, 10) }).eq('id', box.id)
   }
   const markOpenedOnly = async () => { await markOpened(); refresh() }
 
@@ -113,23 +113,23 @@ export default function Inventory({ data, refresh }) {
   const save = async out => {
     const payload = { ...out, created_by: modal.item?.created_by }
     const r = modal.type === 'new'
-      ? await supabase.from('items').insert(payload)
-      : await supabase.from('items').update(payload).eq('id', modal.item.id)
+      ? await db.from('items').insert(payload)
+      : await db.from('items').update(payload).eq('id', modal.item.id)
     if (r.error) throw r.error
     if (modal.type === 'new') notifyOther('Nuovo articolo', `${out.name} · ${eur2(Number(out.cost_enrico || 0) + Number(out.cost_alessandro || 0))}`)
     setModal(null); refresh()
   }
   const remove = async item => {
     if (!confirm(`Eliminare "${item.name}"? Le vendite collegate restano.`)) return
-    await supabase.from('items').delete().eq('id', item.id)
+    await db.from('items').delete().eq('id', item.id)
     setModal(null); refresh()
   }
   const sell = async out => {
     const it = modal.item
-    const { error } = await supabase.from('sales').insert({ item_id: it.id, item_name: it.name, ...out })
+    const { error } = await db.from('sales').insert({ item_id: it.id, item_name: it.name, ...out })
     if (error) throw error
     const left = Math.max(0, Number(it.quantity) - Number(out.quantity_sold))
-    await supabase.from('items').update({
+    await db.from('items').update({
       quantity: left, status: left === 0 ? 'Venduto' : it.status, sale_date: out.sale_date,
       sale_price: out.sale_price_total / out.quantity_sold,
     }).eq('id', it.id)
@@ -137,7 +137,7 @@ export default function Inventory({ data, refresh }) {
     setModal(null); refresh()
   }
   const addCost = async out => {
-    const { error } = await supabase.from('item_costs').insert({ item_id: modal.item.id, item_name: modal.item.name, ...out })
+    const { error } = await db.from('item_costs').insert({ item_id: modal.item.id, item_name: modal.item.name, ...out })
     if (error) throw error
     setModal(null); refresh()
   }

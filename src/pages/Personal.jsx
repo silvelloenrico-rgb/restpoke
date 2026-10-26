@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { supabase, ownerFromEmail } from '../lib/supabase'
+import { db } from '../lib/db'
 import { eur2, summarizePersonal } from '../lib/finance'
 import { Modal, Form, Status } from '../components/ui'
 import { DataTable } from '../components/DataTable'
@@ -30,7 +30,7 @@ function fields(opt, values = {}) {
 }
 
 export default function Personal({ data, refresh, session }) {
-  const owner = ownerFromEmail(session.user.email)
+  const owner = session.owner
   const opt = data.opt
   const [modal, setModal] = useState(null)
   const [formCat, setFormCat] = useState('')
@@ -48,13 +48,13 @@ export default function Personal({ data, refresh, session }) {
 
   const save = async out => {
     const payload = { ...out, owner }
-    const r = modal.item ? await supabase.from('personal_items').update(payload).eq('id', modal.item.id) : await supabase.from('personal_items').insert(payload)
+    const r = modal.item ? await db.from('personal_items').update(payload).eq('id', modal.item.id) : await db.from('personal_items').insert(payload)
     if (r.error) throw r.error
     setModal(null); refresh()
   }
   const remove = async item => {
     if (!confirm('Eliminare questo articolo?')) return
-    await supabase.from('personal_items').delete().eq('id', item.id); setModal(null); refresh()
+    await db.from('personal_items').delete().eq('id', item.id); setModal(null); refresh()
   }
   const openDetail = i => { setFormCat(i.category || ''); setModal({ type: 'detail', item: i }) }
 

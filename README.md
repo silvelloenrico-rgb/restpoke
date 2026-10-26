@@ -1,43 +1,39 @@
-# RestPoke 2.0
+# RestPoke 3.0
 
-Gestionale collezione carte Enrico & Alessandro. React + Vite, dati su Supabase, hosting su Cloudflare Pages.
+Gestionale collezione carte Enrico & Alessandro. React + Vite, tutto su Cloudflare:
+un Worker serve il sito (dist/) e le API (`/api/*`), i dati stanno su D1.
 
-## 1. Utenti (una volta sola)
-Supabase → progetto "RestPoke" → Authentication → Users → "Add user" → crea i due account
-(email + password) per Enrico e Alessandro. Le tabelle sono accessibili solo da utenti autenticati.
+## Struttura
+- `worker/index.js` — API: login (cookie firmato), CRUD sulle tabelle, notifiche push
+- `migrations/` — schema D1 (tabelle, trigger `updated_at`, vista `item_summary`)
+- `seed/data.sql` — dati esportati da Supabase (non in git)
+- `src/lib/db.js` — client delle API usato dalle pagine
+- `scripts/add-user.mjs` — crea/aggiorna un utente
+- `scripts/smoke.sh` — verifica rapida delle API
 
-## 2. Avvio in locale
+## Sviluppo in locale
     npm install
-    npm run dev
+    npm run db:migrate -- --local
+    npx wrangler d1 execute restpoke --local --file=seed/data.sql
+    npm run user -- <email> Enrico <password>
+    npm run build
+    npm run dev:api      # Worker su http://localhost:8787 (sito + API)
+    npm run dev          # opzionale: Vite con hot reload, /api inoltrato al Worker
 
-Il file `.env` contiene già URL e chiave pubblica di Supabase.
+I secret locali stanno in `.dev.vars` (VAPID_PRIVATE_JWK, SESSION_SECRET).
 
-## 3. Deploy su Cloudflare Pages
-
-### Opzione A — da riga di comando (rapida)
-    npm install -g wrangler
-    wrangler login
+## Primo deploy
+    npx wrangler login
+    npx wrangler d1 create restpoke          # copia il database_id in wrangler.toml
+    npm run db:migrate -- --remote
+    npx wrangler d1 execute restpoke --remote --file=seed/data.sql
+    npm run user -- silvello.enrico@gmail.com Enrico <password> --remote
+    npm run user -- alessandro.donaudi@gmail.com Alessandro <password> --remote
+    npx wrangler secret put VAPID_PRIVATE_JWK   # valore da .dev.vars
+    npx wrangler secret put SESSION_SECRET      # valore nuovo e casuale
     npm run deploy
-La prima volta wrangler chiede di creare il progetto "restpoke": conferma.
-L'app sarà su https://restpoke.pages.dev
 
-### Opzione B — collegando GitHub (deploy automatico a ogni push)
-1. Carica questa cartella su un repo GitHub.
-2. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git.
-3. Seleziona il repo e imposta:
-   - Framework preset: Vite
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-4. In "Environment variables" aggiungi le due variabili del file `.env`
-   (VITE_SUPABASE_URL e VITE_SUPABASE_KEY). Servono al momento del build.
-5. Save and Deploy.
-
-## Struttura dati (Supabase, progetto "RestPoke")
-- items — articoli della società (costi divisi Enrico/Alessandro, prezzo di mercato, stato, tag)
-- item_costs — costi extra per articolo (spedizioni, gradazioni) con chi ha pagato
-- sales — vendite (collegate all'articolo)
-- raffles — raffle
-- personal_items — collezioni personali, campo `owner`
-- item_summary — vista con costo totale (base + extra) e incasso per articolo, usata dalla dashboard
-
-Gli ID originali di Base44 sono conservati in `legacy_id`.
+## Note
+- Per disconnettere tutti i dispositivi: cambia `SESSION_SECRET`.
+- Login limitato a 5 tentativi al minuto per IP.
+- Gli ID originali di Base44 sono conservati in `legacy_id`.

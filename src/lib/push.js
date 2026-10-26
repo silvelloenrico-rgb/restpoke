@@ -1,7 +1,7 @@
-import { supabase, ownerFromEmail } from './supabase'
+import { api } from './db'
 
-// Chiave pubblica per le notifiche (è pubblica per natura).
-const VAPID_PUBLIC_KEY = 'BMpM3jWVhDIx-Oc8wbNXRKwqCtMujY_752tiH6-r91TwSPQFdR2P6mv-XwIZOfqbFSDlyIw8pv18vYyWfRpesU8'
+// Chiave pubblica per le notifiche (è pubblica per natura; la privata è un secret del Worker).
+const VAPID_PUBLIC_KEY = 'BAPnEveNAUQidUTvwLy4ysCExIwIrTh6wahMEV0AXOKUKXvenfSmJheqBEv0mHrcs_I2QpNvtmgMUbW7ytqDZR4'
 
 function toKey(base64) {
   const pad = '='.repeat((4 - base64.length % 4) % 4)
@@ -21,30 +21,26 @@ export async function currentSubscription() {
   return reg.pushManager.getSubscription()
 }
 
-export async function enablePush(session) {
+export async function enablePush() {
   if (!pushSupported()) throw new Error('Questo browser non supporta le notifiche.')
   const perm = await Notification.requestPermission()
   if (perm !== 'granted') throw new Error('Permesso notifiche negato.')
   const reg = await navigator.serviceWorker.ready
+  // un'iscrizione fatta con la vecchia chiave VAPID impedirebbe la nuova
+  await (await reg.pushManager.getSubscription())?.unsubscribe()
   const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(VAPID_PUBLIC_KEY) })
-  const { error } = await supabase.from('push_subscriptions').upsert({
-    user_email: session.user.email,
-    owner: ownerFromEmail(session.user.email),
-    endpoint: sub.endpoint,
-    subscription: sub.toJSON(),
-  }, { onConflict: 'endpoint' })
-  if (error) throw error
+  await api('push', 'POST', sub.toJSON())
   return sub
 }
 
 export async function disablePush() {
   const sub = await currentSubscription()
   if (!sub) return
-  await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+  await api('push', 'DELETE', { endpoint: sub.endpoint })
   await sub.unsubscribe()
 }
 
 // Avvisa l'altro socio. Non blocca mai l'azione principale se fallisce.
 export async function notifyOther(title, body, url = '/') {
-  try { await supabase.functions.invoke('notify', { body: { title, body, url } }) } catch {}
+  try { await api('notify', 'POST', { title, body, url }) } catch {}
 }

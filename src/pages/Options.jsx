@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, OPTION_KINDS } from '../lib/supabase'
+import { db, OPTION_KINDS } from '../lib/db'
 
 export default function Options({ data, refresh }) {
   const [kind, setKind] = useState('category')
@@ -14,20 +14,20 @@ export default function Options({ data, refresh }) {
     e.preventDefault()
     const value = nuovo.trim(); if (!value) return
     setBusy(true)
-    const { error } = await supabase.from('options').insert({ kind, value, sort: rows.length + 1 })
+    const { error } = await db.from('options').insert({ kind, value, sort: rows.length + 1 })
     setBusy(false)
     if (error) { alert(error.message.includes('duplicate') ? 'Esiste già.' : error.message); return }
     setNuovo(''); refresh()
   }
   const saveEdit = async () => {
     const value = edit.value.trim(); if (!value) return
-    const { error } = await supabase.from('options').update({ value }).eq('id', edit.id)
+    const { error } = await db.from('options').update({ value }).eq('id', edit.id)
     if (error) { alert(error.message); return }
     setEdit(null); refresh()
   }
   const del = async o => {
     if (!confirm(`Eliminare "${o.value}" da ${current.label.toLowerCase()}? Gli articoli che lo usano non cambiano.`)) return
-    await supabase.from('options').delete().eq('id', o.id); refresh()
+    await db.from('options').delete().eq('id', o.id); refresh()
   }
 
   return (

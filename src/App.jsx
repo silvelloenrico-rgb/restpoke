@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { supabase, loadAll } from './lib/supabase'
+import { auth, loadAll } from './lib/db'
 import { Icons } from './components/icons'
+import { Modal, Form } from './components/ui'
 import { pushSupported, currentSubscription, enablePush, disablePush, isIosBrowserNotInstalled } from './lib/push'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
@@ -20,15 +21,15 @@ const PAGES = [
   ['options', 'Opzioni', Icons.options],
 ]
 
-function Auth() {
+function Auth({ onLogin }) {
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
   const [err, setErr] = useState(null)
   const [busy, setBusy] = useState(false)
   const submit = async e => {
     e.preventDefault(); setBusy(true); setErr(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw })
-    if (error) setErr('Email o password non corrette.')
+    try { onLogin(await auth.login(email, pw)) }
+    catch (e) { setErr(e.message) }
     setBusy(false)
   }
   return (
@@ -48,7 +49,7 @@ function Auth() {
 }
 
 // Pulsante notifiche: attiva/disattiva le push su questo dispositivo.
-function PushBell({ session, compact }) {
+function PushBell({ compact }) {
   const [on, setOn] = useState(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => { currentSubscription().then(s => setOn(!!s)).catch(() => setOn(false)) }, [])
@@ -59,7 +60,7 @@ function PushBell({ session, compact }) {
       if (on) { await disablePush(); setOn(false) }
       else {
         if (isIosBrowserNotInstalled()) { alert("Su iPhone le notifiche funzionano solo dopo aver aggiunto RestPoke alla schermata Home (Condividi → Aggiungi a Home) e averla aperta da lì."); return }
-        await enablePush(session); setOn(true)
+        await enablePush(); setOn(true)
       }
     } catch (e) { alert(e.message) }
     finally { setBusy(false) }
@@ -73,27 +74,44 @@ function PushBell({ session, compact }) {
   )
 }
 
+function PasswordModal({ onClose }) {
+  const submit = async ({ current, next, confirm }) => {
+    if (next !== confirm) throw new Error('Le due password nuove non coincidono.')
+    await auth.changePassword(current, next)
+    alert('Password aggiornata.'); onClose()
+  }
+  return (
+    <Modal title="Cambia password" onClose={onClose}>
+      <Form submitLabel="Aggiorna" onSubmit={submit} onCancel={onClose} fields={[
+        { name: 'current', label: 'Password attuale', type: 'password', required: true, full: true },
+        { name: 'next', label: 'Nuova password (min. 8 caratteri)', type: 'password', required: true, full: true },
+        { name: 'confirm', label: 'Ripeti la nuova password', type: 'password', required: true, full: true },
+      ]} />
+    </Modal>
+  )
+}
+
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [page, setPage] = useState('dashboard')
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [pwOpen, setPwOpen] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
-    return () => sub.subscription.unsubscribe()
+    auth.me().then(setSession)
   }, [])
+  const logout = () => auth.logout().finally(() => { setSession(null); setData(null) })
 
   const refresh = useCallback(async () => {
     try { setData(await loadAll()); setError(null) }
-    catch (e) { setError(e.message) }
+    catch (e) { setError(e.message); if (e.message === 'non autenticato') setSession(null) }
   }, [])
 
   useEffect(() => { if (session) refresh() }, [session, refresh])
 
   if (session === undefined) return null
-  if (!session) return <Auth />
+  if (!session) return <Auth onLogin={setSession} />
 
   const props = { data, refresh }
   const views = data ? {
@@ -116,18 +134,21 @@ export default function App() {
           </button>
         ))}
         <div className="spacer" />
-        <div className="user">{session.user.email}</div>
-        <PushBell session={session} />
-        <button onClick={() => supabase.auth.signOut()}>Esci</button>
+        <div className="user">{session.email}</div>
+        <PushBell />
+        <button onClick={() => setPwOpen(true)}>Cambia password</button>
+        <button onClick={logout}>Esci</button>
       </nav>
 
       <header className="topbar">
         <div className="brand"><img src="/icons/logo.webp" alt="" className="brand-logo" />Rest<span>Poke</span></div>
         <div className="topbar-actions">
-          <PushBell session={session} compact />
-          <button className="logout" onClick={() => supabase.auth.signOut()}>Esci</button>
+          <PushBell compact />
+          <button className="logout" onClick={() => setPwOpen(true)}>Password</button>
+          <button className="logout" onClick={logout}>Esci</button>
         </div>
       </header>
+      {pwOpen && <PasswordModal onClose={() => setPwOpen(false)} />}
 
       <main className="main">
         {error && <div className="error">Errore nel caricamento: {error}</div>}
